@@ -570,15 +570,15 @@ SetPrivacyLevel() {
 ChangeVPNMode(){
 	source "${arahasya}"
   if [[ "${VPN_MODE}" == "Enabled" ]]; then
-	sudo iptables -t nat -D POSTROUTING -o tun0 -j MASQUERADE
-	sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+	nordvpn d
+	sudo iptables-restore /etc/arahasya/iptables.ipv4.eth0
+	sudo sh -c "iptables-save > /etc/iptables.ipv4.nat"
         change_arahasya "VPN_MODE" "Disabled"
   elif [[ "${VPN_MODE}" == "Disabled" ]]; then
-	sudo iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
-        sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+	sudo iptables-restore /etc/arahasya/iptables.ipv4."${PROTOCOL}"
+	sudo sh -c "iptables-save > /etc/iptables.ipv4.nat"
         change_arahasya "VPN_MODE" "Enabled"
   fi
-	sudo sh -c "iptables-save > /etc/iptables.ipv4.nat"
 	exit 0
 }
 
