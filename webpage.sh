@@ -622,6 +622,10 @@ ChangeDefaults() {
 	change_arahasya "DEFAULT_COUNTRY" "${args[3]}"
 }
 
+ChangeServer() {
+nohup bash -c "nordvpn c ${args[3]}" &> /dev/null </dev/null &
+}
+
 main() {
     args=("$@")
 
@@ -657,7 +661,9 @@ main() {
 	"changednsmode"       ) ChangeDNSMode;;
 	"changepiholemode"    ) ChangePiholeMode;;
 	"changedefaults"      ) ChangeDefaults;;
+	"changeserver"        ) ChangeServer;;
         *                     ) helpFunc;;
+
     esac
 
     shift
