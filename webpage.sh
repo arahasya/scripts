@@ -11,7 +11,7 @@
 # Please see LICENSE file for your rights under this license.
 
 readonly setupVars="/etc/pihole/setupVars.conf"
-readonly arahasya="/etc/pihole/arahasya.conf"
+readonly arahasya="/opt/pihole/arahasya/arahasya.conf"
 readonly dnsmasqconfig="/etc/dnsmasq.d/01-pihole.conf"
 readonly dhcpconfig="/etc/dnsmasq.d/02-pihole-dhcp.conf"
 readonly FTLconf="/etc/pihole/pihole-FTL.conf"
@@ -586,14 +586,14 @@ ChangeDNSMode(){
         source "${arahasya}"
 
   if [[ "${DNS_CRYPT}" == "Enabled" ]]; then
-        nohup bash -c "sudo systemctl dnscrypt stop" &> /dev/null </dev/null &
+        nohup bash -c "sudo systemctl stop dnscrypt-proxy" &> /dev/null </dev/null &
 	change_setting "PIHOLE_DNS_1" "8.8.8.8"
 	delete_dnsmasq_setting "server"
 	add_dnsmasq_setting "server" "8.8.8.8"
 	RestartDNS
 	change_arahasya "DNS_CRYPT" "Disabled"
   elif [[ "${DNS_CRYPT}" == "Disabled" ]]; then
-	nohup bash -c "sudo systemctl dnscrypt start" &> /dev/null </dev/null &
+	nohup bash -c "sudo systemctl start dnscrypt-proxy" &> /dev/null </dev/null &
 	change_setting "PIHOLE_DNS_1" "127.0.0.1#4343"
         delete_dnsmasq_setting "server"
         add_dnsmasq_setting "server" "127.0.0.1#4343"
