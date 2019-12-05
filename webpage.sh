@@ -571,12 +571,8 @@ ChangeVPNMode(){
 	source "${arahasya}"
   if [[ "${VPN_MODE}" == "Enabled" ]]; then
 	nordvpn d
-	sudo iptables-restore /etc/arahasya/iptables.ipv4.eth0
-	sudo sh -c "iptables-save > /etc/iptables.ipv4.nat"
         change_arahasya "VPN_MODE" "Disabled"
   elif [[ "${VPN_MODE}" == "Disabled" ]]; then
-	sudo iptables-restore /etc/arahasya/iptables.ipv4."${PROTOCOL}"
-	sudo sh -c "iptables-save > /etc/iptables.ipv4.nat"
         change_arahasya "VPN_MODE" "Enabled"
   fi
 	exit 0
@@ -623,7 +619,18 @@ ChangeDefaults() {
 }
 
 ChangeServer() {
-nohup bash -c "nordvpn c ${args[3]}" &> /dev/null </dev/null &
+	nordvpn d
+	pgrep openvpn | xargs sudo kill -9
+  if [[ "${args[2]}" == "OpenVPN" ]]; then
+	nohup bash -c "nordvpn set technology openvpn" &> /dev/null </dev/null &
+	sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+  elif [[ "${args[2]}" == "Wireguard" ]]; then
+	nohup bash -c "nordvpn set technology nordlynx" &> /dev/null </dev/null &
+	sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
+  fi
+	nohup bash -c "sudo /opt/pihole/arahasya/nord.sh" &> /dev/null </dev/null &
+	sudo iptables -A INPUT -i wlx503eaabe62a4 -p udp -m udp --dport 67:68 -j ACCEPT
+	exit 0
 }
 
 main() {
