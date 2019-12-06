@@ -628,8 +628,15 @@ ChangeServer() {
 	nohup bash -c "nordvpn set technology nordlynx" &> /dev/null </dev/null &
 	sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
   fi
-	nohup bash -c "sudo /opt/pihole/arahasya/nord.sh" &> /dev/null </dev/null &
-	sudo iptables -A INPUT -i wlx503eaabe62a4 -p udp -m udp --dport 67:68 -j ACCEPT
+	sudo /opt/pihole/arahasya/nord.sh "${args[3]}"
+	sudo sh /opt/pihole/arahasya/s.sh
+
+  if [[ "${args[2]}" == "OpenVPN" ]]; then
+        sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+  elif [[ "${args[2]}" == "Wireguard" ]]; then
+        sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
+  fi
+
 	exit 0
 }
 
