@@ -1,11 +1,13 @@
 #!/usr/bin/expect -f
 set loc [lindex $argv 0];
+set mail [lindex $argv 1];
+set pass [lindex $argv 2];
 catch {exec nordvpn logout}
 spawn nordvpn login
 expect "Email / Username: "
-send -- "43saps@gmail.com\r"
+send -- "$mail\r"
 expect "Password: "
-send -- "Iloven@rd43!\r"
+send -- "$pass\r"
 expect eof
 exec nordvpn c "$loc"
 set timeout -1

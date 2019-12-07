@@ -619,7 +619,7 @@ ChangeDefaults() {
 }
 
 ChangeServer() {
-	nordvpn d
+	source "${arahasya}"
 	pgrep openvpn | xargs sudo kill -9
   if [[ "${args[2]}" == "OpenVPN" ]]; then
 	nohup bash -c "nordvpn set technology openvpn" &> /dev/null </dev/null &
@@ -628,7 +628,7 @@ ChangeServer() {
 	nohup bash -c "nordvpn set technology nordlynx" &> /dev/null </dev/null &
 	sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
   fi
-	sudo /opt/pihole/arahasya/nord.sh "${args[3]}"
+	sudo /opt/pihole/arahasya/nord.sh "${args[3]}" "${NORD_MAIL}" "${NORD_PASS}"
 	sudo sh /opt/pihole/arahasya/s.sh
 
   if [[ "${args[2]}" == "OpenVPN" ]]; then
@@ -638,6 +638,12 @@ ChangeServer() {
   fi
 
 	exit 0
+}
+
+ChangeNord() {
+        source "${arahasya}"
+        change_arahasya "NORD_MAIL" "${args[2]}"
+        change_arahasya "NORD_PASS" "${args[3]}"
 }
 
 main() {
@@ -676,6 +682,7 @@ main() {
 	"changepiholemode"    ) ChangePiholeMode;;
 	"changedefaults"      ) ChangeDefaults;;
 	"changeserver"        ) ChangeServer;;
+	"changenord"	      ) ChangeNord;;
         *                     ) helpFunc;;
 
     esac
