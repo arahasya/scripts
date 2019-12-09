@@ -258,7 +258,7 @@ SetDNSServers() {
     ProcessDNSSettings
 
     # Restart dnsmasq to load new configuration
-    RestartDNS && change_arahasya "DNS_CRYPT" "Disabled"
+    RestartDNS
 }
 
 SetExcludeDomains() {
@@ -636,7 +636,6 @@ ChangeServer() {
   elif [[ "${args[2]}" == "Wireguard" ]]; then
         sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
   fi
-	UpdateNord
 
 	exit 0
 }
@@ -645,46 +644,6 @@ ChangeNord() {
         source "${arahasya}"
         change_arahasya "NORD_MAIL" "${args[2]}"
         change_arahasya "NORD_PASS" "${args[3]}"
-}
-
-UpdateNord(){
-	source "${arahasya}"
-	stat="$(nordvpn status)"
-
-if [ `echo $stat | grep -c "Connected" ` -gt 0 ]
-then
-	stat="$(nordvpn status)"
-	stat1="$(echo -e "${stat1}" | tr -d '[:space:]')"
-	
-	status=$(echo $stat | grep -o -P '(?<=Status:).*(?=Current server:)') && status="$(echo -e "${status}" | sed -e 's/^[[:space:]]*//')"
-	server=$(echo $stat | grep -o -P '(?<=Current server:).*(?=Country:)') && server="$(echo -e "${server}" | sed -e 's/^[[:space:]]*//')"
-	country=$(echo $stat | grep -o -P '(?<=Country:).*(?=City:)') && country="$(echo -e "${country}" | sed -e 's/^[[:space:]]*//')"
-	city=$(echo $stat | grep -o -P '(?<=City:).*(?=Your new IP:)') && city="$(echo -e "${city}" | sed -e 's/^[[:space:]]*//')"
-	new_ip=$(echo $stat | grep -o -P '(?<=Your new IP:).*(?=Current technology:)') && new_ip="$(echo -e "${new_ip}" | sed -e 's/^[[:space:]]*//')"
-	pro=$(echo $stat | grep -o -P '(?<=Current technology:).*(?=Transfer:)') && pro="$(echo -e "${pro}" | sed -e 's/^[[:space:]]*//')"
-	transfer=$(echo $stat | grep -o -P '(?<=Transfer:).*(?=Uptime)') && transfer="$(echo -e "${transfer}" | sed -e 's/^[[:space:]]*//')"
-	uptime=$(echo $stat | grep -o -P '(?<=Uptime:).*(?=seconds)') && uptime="$(echo -e "${uptime}" | sed -e 's/^[[:space:]]*//')"
-
-	change_arahasya "STATUS" "$status"
-	change_arahasya "SERVER" "$server"
-	change_arahasya "COUNTRY" "$country"
-	change_arahasya "CITY" "$city"
-	change_arahasya "NEW_IP" "$new_ip"
-	change_arahasya "PRO_VPN" "$pro"
-	change_arahasya "TRANSFER" "$transfer"
-	change_arahasya "UPTIME" "$uptime seconds"
-else
-	change_arahasya "STATUS" "Disconnected"
-        change_arahasya "SERVER" "--"
-        change_arahasya "COUNTRY" "--"
-        change_arahasya "CITY" "--"
-        change_arahasya "NEW_IP" "--"
-        change_arahasya "PRO" "--"
-        change_arahasya "TRANSFER" "--"
-        change_arahasya "UPTIME" "--"
-fi
-
-
 }
 
 main() {
@@ -724,7 +683,6 @@ main() {
 	"changedefaults"      ) ChangeDefaults;;
 	"changeserver"        ) ChangeServer;;
 	"changenord"	      ) ChangeNord;;
-	"updateNord"	      ) UpdateNord;;
         *                     ) helpFunc;;
 
     esac
