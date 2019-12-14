@@ -12,7 +12,6 @@
 
 readonly setupVars="/etc/pihole/setupVars.conf"
 readonly arahasya="/opt/pihole/arahasya/arahasya.conf"
-readonly nord="/opt/pihole/arahasya/nord.conf"
 readonly dnsmasqconfig="/etc/dnsmasq.d/01-pihole.conf"
 readonly dhcpconfig="/etc/dnsmasq.d/02-pihole-dhcp.conf"
 readonly FTLconf="/etc/pihole/pihole-FTL.conf"
@@ -67,19 +66,6 @@ delete_arahasya() {
 change_arahasya() {
     delete_arahasya "${1}"
     add_arahasya "${1}" "${2}"
-}
-
-add_nord() {
-    echo "${1}=${2}" >> "${nord}"
-}
-
-delete_nord() {
-    sed -i "/${1}/d" "${nord}"
-}
-
-change_nord() {
-    delete_nord "${1}"
-    add_nord "${1}" "${2}"
 }
 
 addFTLsetting() {
@@ -274,7 +260,7 @@ SetDNSServers() {
     # Restart dnsmasq to load new configuration
     RestartDNS
     if [[ "${PIHOLE_DNS_1}" == "127.0.0.1#4343" ]]; then
-     	change_arahasya "DNS_CRYPT" "Enabled"
+     	cdchange_arahasya "DNS_CRYPT" "Enabled"
     else 
 	change_arahasya "DNS_CRYPT" "Disabled"
     fi
@@ -641,10 +627,11 @@ ChangeServer() {
 	pgrep openvpn | xargs sudo kill -9
   if [[ "${args[2]}" == "OpenVPN" ]]; then
 	nohup bash -c "nordvpn set technology openvpn" &> /dev/null </dev/null &
+	sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
   elif [[ "${args[2]}" == "Wireguard" ]]; then
 	nohup bash -c "nordvpn set technology nordlynx" &> /dev/null </dev/null &
+	sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
   fi
-
 	sudo /opt/pihole/arahasya/nord.sh "${args[3]}" "${NORD_MAIL}" "${NORD_PASS}"
 	sudo sh /opt/pihole/arahasya/s.sh
 
@@ -665,13 +652,14 @@ ChangeNord() {
 }
 
 UpdateNord(){
-	source "${nord}"
+	source "${arahasya}"
 	stat="$(nordvpn status)"
 
 if [ `echo $stat | grep -c "Connected" ` -gt 0 ]
 then
 	stat="$(nordvpn status)"
-
+	stat1="$(echo -e "${stat1}" | tr -d '[:space:]')"
+	
 	status=$(echo $stat | grep -o -P '(?<=Status:).*(?=Current server:)') && status="$(echo -e "${status}" | sed -e 's/^[[:space:]]*//')"
 	server=$(echo $stat | grep -o -P '(?<=Current server:).*(?=Country:)') && server="$(echo -e "${server}" | sed -e 's/^[[:space:]]*//')"
 	country=$(echo $stat | grep -o -P '(?<=Country:).*(?=City:)') && country="$(echo -e "${country}" | sed -e 's/^[[:space:]]*//')"
@@ -681,53 +669,28 @@ then
 	transfer=$(echo $stat | grep -o -P '(?<=Transfer:).*(?=Uptime)') && transfer="$(echo -e "${transfer}" | sed -e 's/^[[:space:]]*//')"
 	uptime=$(echo $stat | grep -o -P '(?<=Uptime:).*(?=seconds)') && uptime="$(echo -e "${uptime}" | sed -e 's/^[[:space:]]*//')"
 
-	change_nord "STATUS" "$status"
-	change_nord "SERVER" "$server"
-	change_nord "COUNTRY" "$country"
-	change_nord "CITY" "$city"
-	change_nord "NEW_IP" "$new_ip"
-	change_nord "PRO_VPN" "$pro"
-	change_nord "TRANSFER" "$transfer"
-	change_nord "UPTIME" "$uptime seconds"
+	change_arahasya "STATUS" "$status"
+	change_arahasya "SERVER" "$server"
+	change_arahasya "COUNTRY" "$country"
+	change_arahasya "CITY" "$city"
+	change_arahasya "NEW_IP" "$new_ip"
+	change_arahasya "PRO_VPN" "$pro"
+	change_arahasya "TRANSFER" "$transfer"
+	change_arahasya "UPTIME" "$uptime seconds"
 else
-	change_nord "STATUS" "Disconnected"
-        change_nord "SERVER" "--"
-        change_nord "COUNTRY" "--"
-        change_nord "CITY" "--"
-        change_nord "NEW_IP" "--"
-        change_nord "PRO_VPN" "--"
-        change_nord "TRANSFER" "--"
-        change_nord "UPTIME" "--"
+	change_arahasya "STATUS" "Disconnected"
+        change_arahasya "SERVER" "--"
+        change_arahasya "COUNTRY" "--"
+        change_arahasya "CITY" "--"
+        change_arahasya "NEW_IP" "--"
+        change_arahasya "PRO_VPN" "--"
+        change_arahasya "TRANSFER" "--"
+        change_arahasya "UPTIME" "--"
 
 fi
 }
 
-OnBoot() {
-	source "${arahasya}"
 
-if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
-        nohup bash -c "nordvpn set technology openvpn" &> /dev/null </dev/null &
-  elif [[ "${PROTOCOL}" == "Wireguard" ]]; then
-        nohup bash -c "nordvpn set technology nordlynx" &> /dev/null </dev/null &
-  fi
-
-  if [[ "${VPN_MODE}" == "Enabled" ]]; then
-
-        sudo /opt/pihole/arahasya/nord.sh "${DEFAULT_COUNTRY}" "${NORD_MAIL}" "${NORD_PASS}"
-        sudo sh /opt/pihole/arahasya/s.sh
-
-  if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
-        sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
-  elif [[ "${PROTOCOL}" == "Wireguard" ]]; then
-        sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
-  fi
-
-  elif [[ "${VPN_MODE}" == "Disabled" ]]; then
-	sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-  fi
-	UpdateNord
-        exit 0
-}
 
 main() {
     args=("$@")
@@ -766,7 +729,7 @@ main() {
 	"changedefaults"      ) ChangeDefaults;;
 	"changeserver"        ) ChangeServer;;
 	"changenord"	      ) ChangeNord;;
-	"updatenord"	      ) UpdateNord;;
+	"updateNord"	      ) UpdateNord;;
 	"onboot"	      ) OnBoot;;
         *                     ) helpFunc;;
 
