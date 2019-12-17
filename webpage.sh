@@ -593,6 +593,10 @@ ChangeVPNMode(){
   elif [[ "${VPN_MODE}" == "Disabled" ]]; then
         change_arahasya "VPN_MODE" "Enabled"
   fi
+	UpdateNord
+       sudo sh /opt/pihole/arahasya/s.sh
+       sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+
 	exit 0
 }
 
@@ -600,14 +604,14 @@ ChangeDNSMode(){
         source "${arahasya}"
 
   if [[ "${DNS_CRYPT}" == "Enabled" ]]; then
-        nohup bash -c "sudo systemctl stop dnscrypt-proxy" &> /dev/null </dev/null &
+        nohup bash -c "sudo service dnscrypt-proxy stop" &> /dev/null </dev/null &
 	change_setting "PIHOLE_DNS_1" "8.8.8.8"
 	delete_dnsmasq_setting "server"
 	add_dnsmasq_setting "server" "8.8.8.8"
 	RestartDNS
 	change_arahasya "DNS_CRYPT" "Disabled"
   elif [[ "${DNS_CRYPT}" == "Disabled" ]]; then
-	nohup bash -c "sudo systemctl start dnscrypt-proxy" &> /dev/null </dev/null &
+	nohup bash -c "sudo service dnscrypt-proxy start" &> /dev/null </dev/null &
 	change_setting "PIHOLE_DNS_1" "127.0.0.1#4343"
         delete_dnsmasq_setting "server"
         add_dnsmasq_setting "server" "127.0.0.1#4343"
@@ -703,6 +707,17 @@ fi
 }
 
 OnBoot() {
+	source "${setupVars}"
+
+	sudo /etc/init.d/hostapd stop
+        sudo systemctl stop hostapd
+	int="$(ip link | awk -F: '$0 !~ "lo|vir|et|p2|^[^0-9]"{print $2;getline}')"
+	int="$(echo -e "${int}" | sed -e 's/^[[:space:]]*//')"
+	sudo find /etc/network/interfaces -type f -exec sed -i "s/wl.*$/${int}/g" {} \;
+	sudo find /etc/hostapd/hostapd.conf -type f -exec sed -i "s/interface=.*$/interface=${int}/g" {} \;
+	change_setting "PIHOLE_INTERFACE" "${int}"
+sudo /etc/init.d/hostapd start
+sudo systemctl start hostapd
 	source "${arahasya}"
 
 if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
@@ -728,6 +743,36 @@ if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
 	UpdateNord
         exit 0
 }
+
+QuickConnect(){
+
+source "${arahasya}"
+  if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
+        nohup bash -c "nordvpn set technology openvpn" &> /dev/null </dev/null &
+  elif [[ "${PROTOCOL}" == "Wireguard" ]]; then
+        nohup bash -c "nordvpn set technology nordlynx" &> /dev/null </dev/null &
+  fi
+	sudo /opt/pihole/arahasya/qconnect.sh "${NORD_MAIL}" "${NORD_PASS}"
+	sudo sh /opt/pihole/arahasya/s.sh
+
+  if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
+        sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+  elif [[ "${PROTOCOL}" == "Wireguard" ]]; then
+        sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
+  fi
+
+	UpdateNord
+}
+
+Disconnect(){
+
+	nordvpn d
+	pgrep openvpn | xargs sudo kill -9
+	UpdateNord
+
+}
+
+
 
 main() {
     args=("$@")
@@ -768,6 +813,8 @@ main() {
 	"changenord"	      ) ChangeNord;;
 	"updatenord"	      ) UpdateNord;;
 	"onboot"	      ) OnBoot;;
+	"quickconnect"        ) QuickConnect;;
+	"disconnect"	      ) Disconnect;;
         *                     ) helpFunc;;
 
     esac
