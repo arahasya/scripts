@@ -13,6 +13,7 @@
 readonly setupVars="/etc/pihole/setupVars.conf"
 readonly arahasya="/opt/pihole/arahasya/arahasya.conf"
 readonly nord="/opt/pihole/arahasya/nord.conf"
+readonly hostapd="/etc/hostapd/hostapd.conf"
 readonly dnsmasqconfig="/etc/dnsmasq.d/01-pihole.conf"
 readonly dhcpconfig="/etc/dnsmasq.d/02-pihole-dhcp.conf"
 readonly FTLconf="/etc/pihole/pihole-FTL.conf"
@@ -80,6 +81,18 @@ delete_nord() {
 change_nord() {
     delete_nord "${1}"
     add_nord "${1}" "${2}"
+}
+add_hostapd() {
+    echo "${1}=${2}" >> "${hostapd}"
+}
+
+delete_hostapd() {
+    sed -i "/${1}/d" "${hostapd}"
+}
+
+change_hostapd() {
+    delete_hostapd "${1}"
+    add_hostapd "${1}" "${2}"
 }
 
 addFTLsetting() {
@@ -707,17 +720,6 @@ fi
 }
 
 OnBoot() {
-	source "${setupVars}"
-
-	sudo /etc/init.d/hostapd stop
-        sudo systemctl stop hostapd
-	int="$(ip link | awk -F: '$0 !~ "lo|vir|et|p2|^[^0-9]"{print $2;getline}')"
-	int="$(echo -e "${int}" | sed -e 's/^[[:space:]]*//')"
-	sudo find /etc/network/interfaces -type f -exec sed -i "s/wl.*$/${int}/g" {} \;
-	sudo find /etc/hostapd/hostapd.conf -type f -exec sed -i "s/interface=.*$/interface=${int}/g" {} \;
-	change_setting "PIHOLE_INTERFACE" "${int}"
-sudo /etc/init.d/hostapd start
-sudo systemctl start hostapd
 	source "${arahasya}"
 
 if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
@@ -765,14 +767,31 @@ source "${arahasya}"
 }
 
 Disconnect(){
-
 	nordvpn d
 	pgrep openvpn | xargs sudo kill -9
 	UpdateNord
-
 }
 
+ChangeWifiDetails(){
+source "${hostapd}"
+	change_hostapd "ssid" "${args[2]}"
+	change_hostapd "wpa_passphrase" "${args[3]}"
+}
+ChangeInterface(){
+source "${setupVars}"
 
+        sudo /etc/init.d/hostapd stop
+        sudo systemctl stop hostapd
+        int="$(ip link | awk -F: '$0 !~ "lo|vir|et|p2|^[^0-9]"{print $2;getline}')"
+        int="$(echo -e "${int}" | sed -e 's/^[[:space:]]*//')"
+        sudo find /etc/network/interfaces -type f -exec sed -i "s/wl.*$/${int}/g" {} \;
+        sudo find /etc/hostapd/hostapd.conf -type f -exec sed -i "s/interface=.*$/interface=${int}/g" {} \;
+        change_setting "PIHOLE_INTERFACE" "${int}"
+	ProcessDHCPSettings
+sudo /etc/init.d/hostapd start
+sudo systemctl start hostapd
+
+}
 
 main() {
     args=("$@")
@@ -815,6 +834,8 @@ main() {
 	"onboot"	      ) OnBoot;;
 	"quickconnect"        ) QuickConnect;;
 	"disconnect"	      ) Disconnect;;
+	"changewifidetails"   ) ChangeWifiDetails;;
+	"changewifiint"       ) ChangeInterface;;
         *                     ) helpFunc;;
 
     esac
