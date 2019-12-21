@@ -603,12 +603,12 @@ ChangeVPNMode(){
   if [[ "${VPN_MODE}" == "Enabled" ]]; then
 	nordvpn d
         change_arahasya "VPN_MODE" "Disabled"
+	ClearFilter
+	sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
   elif [[ "${VPN_MODE}" == "Disabled" ]]; then
         change_arahasya "VPN_MODE" "Enabled"
   fi
 	UpdateNord
-       sudo sh /opt/pihole/arahasya/s.sh
-       sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 
 	exit 0
 }
@@ -617,14 +617,12 @@ ChangeDNSMode(){
         source "${arahasya}"
 
   if [[ "${DNS_CRYPT}" == "Enabled" ]]; then
-        nohup bash -c "sudo service dnscrypt-proxy stop" &> /dev/null </dev/null &
 	change_setting "PIHOLE_DNS_1" "8.8.8.8"
 	delete_dnsmasq_setting "server"
 	add_dnsmasq_setting "server" "8.8.8.8"
 	RestartDNS
 	change_arahasya "DNS_CRYPT" "Disabled"
   elif [[ "${DNS_CRYPT}" == "Disabled" ]]; then
-	nohup bash -c "sudo service dnscrypt-proxy start" &> /dev/null </dev/null &
 	change_setting "PIHOLE_DNS_1" "127.0.0.1#4343"
         delete_dnsmasq_setting "server"
         add_dnsmasq_setting "server" "127.0.0.1#4343"
@@ -731,7 +729,7 @@ if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
   if [[ "${VPN_MODE}" == "Enabled" ]]; then
 
         sudo /opt/pihole/arahasya/nord.sh "${DEFAULT_COUNTRY}" "${NORD_MAIL}" "${NORD_PASS}"
-        sudo sh /opt/pihole/arahasya/s.sh
+	ClearFilter
 
   if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
         sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
@@ -755,7 +753,7 @@ source "${arahasya}"
         nohup bash -c "nordvpn set technology nordlynx" &> /dev/null </dev/null &
   fi
 	sudo /opt/pihole/arahasya/qconnect.sh "${NORD_MAIL}" "${NORD_PASS}"
-	sudo sh /opt/pihole/arahasya/s.sh
+	ClearFilter
 
   if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
         sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
@@ -766,6 +764,19 @@ source "${arahasya}"
 	UpdateNord
 }
 
+ClearFilter(){
+
+iptables -F
+iptables -X
+iptables -t nat -F
+iptables -t nat -X
+iptables -t mangle -F
+iptables -t mangle -X
+iptables -P INPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -P OUTPUT ACCEPT
+}
+
 Disconnect(){
 	nordvpn d
 	pgrep openvpn | xargs sudo kill -9
@@ -774,13 +785,17 @@ Disconnect(){
 
 ChangeWifiDetails(){
 source "${hostapd}"
-	change_hostapd "ssid" "${args[2]}"
-	change_hostapd "wpa_passphrase" "${args[3]}"
+
+        sudo systemctl stop hostapd
+        change_hostapd "ssid" "${args[2]}"
+        change_hostapd "wpa_passphrase" "${args[3]}"
+        sudo systemctl unmask hostapd
+        sudo systemctl enable hostapd
+        sudo systemctl start hostapd
 }
 ChangeInterface(){
 source "${setupVars}"
 
-        sudo /etc/init.d/hostapd stop
         sudo systemctl stop hostapd
         int="$(ip link | awk -F: '$0 !~ "lo|vir|et|p2|^[^0-9]"{print $2;getline}')"
         int="$(echo -e "${int}" | sed -e 's/^[[:space:]]*//')"
@@ -788,9 +803,9 @@ source "${setupVars}"
         sudo find /etc/hostapd/hostapd.conf -type f -exec sed -i "s/interface=.*$/interface=${int}/g" {} \;
         change_setting "PIHOLE_INTERFACE" "${int}"
 	ProcessDHCPSettings
-sudo /etc/init.d/hostapd start
-sudo systemctl start hostapd
-
+	sudo systemctl unmask hostapd
+        sudo systemctl enable hostapd
+        sudo systemctl start hostapd
 }
 
 main() {
@@ -836,6 +851,7 @@ main() {
 	"disconnect"	      ) Disconnect;;
 	"changewifidetails"   ) ChangeWifiDetails;;
 	"changewifiint"       ) ChangeInterface;;
+	"clearfilter"	      ) ClearFilter;;
         *                     ) helpFunc;;
 
     esac
