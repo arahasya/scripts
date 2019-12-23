@@ -598,13 +598,73 @@ SetPrivacyLevel() {
     fi
 }
 
+ClearFilter(){
+
+iptables -F
+iptables -X
+iptables -t nat -F
+iptables -t nat -X
+iptables -t mangle -F
+iptables -t mangle -X
+iptables -P INPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -P OUTPUT ACCEPT
+}
+
+UpdateNord(){
+        source "${nord}"
+        stat="$(nordvpn status)"
+
+if [ `echo $stat | grep -c "Connected" ` -gt 0 ]
+then
+        stat="$(nordvpn status)"
+
+        status=$(echo $stat | grep -o -P '(?<=Status:).*(?=Current server:)') && status="$(echo -e "${status}" | sed -e 's/^[[:space:]]*//')"
+        server=$(echo $stat | grep -o -P '(?<=Current server:).*(?=Country:)') && server="$(echo -e "${server}" | sed -e 's/^[[:space:]]*//')"
+        country=$(echo $stat | grep -o -P '(?<=Country:).*(?=City:)') && country="$(echo -e "${country}" | sed -e 's/^[[:space:]]*//')"
+        city=$(echo $stat | grep -o -P '(?<=City:).*(?=Your new IP:)') && city="$(echo -e "${city}" | sed -e 's/^[[:space:]]*//')"
+        new_ip=$(echo $stat | grep -o -P '(?<=Your new IP:).*(?=Current technology:)') && new_ip="$(echo -e "${new_ip}" | sed -e 's/^[[:space:]]*//')"
+        pro=$(echo $stat | grep -o -P '(?<=Current technology:).*(?=Transfer:)') && pro="$(echo -e "${pro}" | sed -e 's/^[[:space:]]*//')"
+        transfer=$(echo $stat | grep -o -P '(?<=Transfer:).*(?=Uptime)') && transfer="$(echo -e "${transfer}" | sed -e 's/^[[:space:]]*//')"
+        uptime=$(echo $stat | grep -o -P '(?<=Uptime:).*(?=seconds)') && uptime="$(echo -e "${uptime}" | sed -e 's/^[[:space:]]*//')"
+
+        change_nord "STATUS" "$status"
+        change_nord "SERVER" "$server"
+        change_nord "COUNTRY" "$country"
+        change_nord "CITY" "$city"
+        change_nord "NEW_IP" "$new_ip"
+        change_nord "PRO_VPN" "$pro"
+        change_nord "TRANSFER" "$transfer"
+        change_nord "UPTIME" "$uptime seconds"
+else
+        change_nord "STATUS" "Disconnected"
+        change_nord "SERVER" "--"
+        change_nord "COUNTRY" "--"
+        change_nord "CITY" "--"
+        change_nord "NEW_IP" "--"
+        change_nord "PRO_VPN" "--"
+        change_nord "TRANSFER" "--"
+        change_nord "UPTIME" "--"
+fi
+}
+
+NAT(){
+	source "${arahasya}"
+	if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
+		sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+  	elif [[ "${PROTOCOL}" == "Wireguard" ]]; then
+		sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
+	fi
+        UpdateNord
+}
+
 ChangeVPNMode(){
 	source "${arahasya}"
   if [[ "${VPN_MODE}" == "Enabled" ]]; then
 	nordvpn d
         change_arahasya "VPN_MODE" "Disabled"
 	ClearFilter
-	sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+	NAT "eth0"
   elif [[ "${VPN_MODE}" == "Disabled" ]]; then
         change_arahasya "VPN_MODE" "Enabled"
   fi
@@ -661,14 +721,8 @@ ChangeServer() {
   fi
 
 	sudo /opt/pihole/arahasya/nord.sh "${args[3]}" "${NORD_MAIL}" "${NORD_PASS}"
-	sudo sh /opt/pihole/arahasya/s.sh
-
-  if [[ "${args[2]}" == "OpenVPN" ]]; then
-        sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
-  elif [[ "${args[2]}" == "Wireguard" ]]; then
-        sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
-  fi
-	UpdateNord
+	ClearFilter
+	NAT
 
 	exit 0
 }
@@ -677,44 +731,6 @@ ChangeNord() {
         source "${arahasya}"
         change_arahasya "NORD_MAIL" "${args[2]}"
         change_arahasya "NORD_PASS" "${args[3]}"
-}
-
-UpdateNord(){
-	source "${nord}"
-	stat="$(nordvpn status)"
-
-if [ `echo $stat | grep -c "Connected" ` -gt 0 ]
-then
-	stat="$(nordvpn status)"
-
-	status=$(echo $stat | grep -o -P '(?<=Status:).*(?=Current server:)') && status="$(echo -e "${status}" | sed -e 's/^[[:space:]]*//')"
-	server=$(echo $stat | grep -o -P '(?<=Current server:).*(?=Country:)') && server="$(echo -e "${server}" | sed -e 's/^[[:space:]]*//')"
-	country=$(echo $stat | grep -o -P '(?<=Country:).*(?=City:)') && country="$(echo -e "${country}" | sed -e 's/^[[:space:]]*//')"
-	city=$(echo $stat | grep -o -P '(?<=City:).*(?=Your new IP:)') && city="$(echo -e "${city}" | sed -e 's/^[[:space:]]*//')"
-	new_ip=$(echo $stat | grep -o -P '(?<=Your new IP:).*(?=Current technology:)') && new_ip="$(echo -e "${new_ip}" | sed -e 's/^[[:space:]]*//')"
-	pro=$(echo $stat | grep -o -P '(?<=Current technology:).*(?=Transfer:)') && pro="$(echo -e "${pro}" | sed -e 's/^[[:space:]]*//')"
-	transfer=$(echo $stat | grep -o -P '(?<=Transfer:).*(?=Uptime)') && transfer="$(echo -e "${transfer}" | sed -e 's/^[[:space:]]*//')"
-	uptime=$(echo $stat | grep -o -P '(?<=Uptime:).*(?=seconds)') && uptime="$(echo -e "${uptime}" | sed -e 's/^[[:space:]]*//')"
-
-	change_nord "STATUS" "$status"
-	change_nord "SERVER" "$server"
-	change_nord "COUNTRY" "$country"
-	change_nord "CITY" "$city"
-	change_nord "NEW_IP" "$new_ip"
-	change_nord "PRO_VPN" "$pro"
-	change_nord "TRANSFER" "$transfer"
-	change_nord "UPTIME" "$uptime seconds"
-else
-	change_nord "STATUS" "Disconnected"
-        change_nord "SERVER" "--"
-        change_nord "COUNTRY" "--"
-        change_nord "CITY" "--"
-        change_nord "NEW_IP" "--"
-        change_nord "PRO_VPN" "--"
-        change_nord "TRANSFER" "--"
-        change_nord "UPTIME" "--"
-
-fi
 }
 
 OnBoot() {
@@ -730,12 +746,7 @@ if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
 
         sudo /opt/pihole/arahasya/nord.sh "${DEFAULT_COUNTRY}" "${NORD_MAIL}" "${NORD_PASS}"
 	ClearFilter
-
-  if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
-        sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
-  elif [[ "${PROTOCOL}" == "Wireguard" ]]; then
-        sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
-  fi
+	NAT
 
   elif [[ "${VPN_MODE}" == "Disabled" ]]; then
 	sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
@@ -746,7 +757,7 @@ if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
 
 QuickConnect(){
 
-source "${arahasya}"
+  source "${arahasya}"
   if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
         nohup bash -c "nordvpn set technology openvpn" &> /dev/null </dev/null &
   elif [[ "${PROTOCOL}" == "Wireguard" ]]; then
@@ -754,27 +765,7 @@ source "${arahasya}"
   fi
 	sudo /opt/pihole/arahasya/qconnect.sh "${NORD_MAIL}" "${NORD_PASS}"
 	ClearFilter
-
-  if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
-        sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
-  elif [[ "${PROTOCOL}" == "Wireguard" ]]; then
-        sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
-  fi
-
-	UpdateNord
-}
-
-ClearFilter(){
-
-iptables -F
-iptables -X
-iptables -t nat -F
-iptables -t nat -X
-iptables -t mangle -F
-iptables -t mangle -X
-iptables -P INPUT ACCEPT
-iptables -P FORWARD ACCEPT
-iptables -P OUTPUT ACCEPT
+	NAT
 }
 
 Disconnect(){
