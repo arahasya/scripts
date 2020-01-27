@@ -286,9 +286,9 @@ SetDNSServers() {
 
     # Restart dnsmasq to load new configuration
     RestartDNS
-    if [[ "${PIHOLE_DNS_1}" == "127.0.0.1#4343" ]]; then
+    if [[ "${PIHOLE_DNS_1}" == "127.0.0.1#4344" ]]; then
      	change_arahasya "DNS_CRYPT" "Enabled"
-    else 
+    else
 	change_arahasya "DNS_CRYPT" "Disabled"
     fi
 }
@@ -609,6 +609,7 @@ iptables -t mangle -X
 iptables -P INPUT ACCEPT
 iptables -P FORWARD ACCEPT
 iptables -P OUTPUT ACCEPT
+
 }
 
 UpdateNord(){
@@ -651,9 +652,9 @@ fi
 NAT(){
 	source "${arahasya}"
 	if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
-		sudo iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
+		iptables -t nat -A POSTROUTING -o tun0 -j MASQUERADE
   	elif [[ "${PROTOCOL}" == "Wireguard" ]]; then
-		sudo iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
+		iptables -t nat -A POSTROUTING -o nordvpn+ -j MASQUERADE
 	fi
         UpdateNord
 }
@@ -683,9 +684,9 @@ ChangeDNSMode(){
 	RestartDNS
 	change_arahasya "DNS_CRYPT" "Disabled"
   elif [[ "${DNS_CRYPT}" == "Disabled" ]]; then
-	change_setting "PIHOLE_DNS_1" "127.0.0.1#4343"
+	change_setting "PIHOLE_DNS_1" "127.0.0.1#4344"
         delete_dnsmasq_setting "server"
-        add_dnsmasq_setting "server" "127.0.0.1#4343"
+        add_dnsmasq_setting "server" "127.0.0.1#4344"
         RestartDNS
 	change_arahasya "DNS_CRYPT" "Enabled"
   fi
@@ -720,11 +721,11 @@ ChangeServer() {
 	nohup bash -c "nordvpn set technology nordlynx" &> /dev/null </dev/null &
   fi
 
-	sudo /opt/pihole/arahasya/nord.sh "${args[3]}" "${NORD_MAIL}" "${NORD_PASS}"
+	/opt/pihole/arahasya/nord.sh "${args[3]}" "${NORD_MAIL}" "${NORD_PASS}"
 	ClearFilter
 	NAT
+	UpdateNord
 
-	exit 0
 }
 
 ChangeNord() {
@@ -736,7 +737,7 @@ ChangeNord() {
 OnBoot() {
 	source "${arahasya}"
 
-if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
+  if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
         nohup bash -c "nordvpn set technology openvpn" &> /dev/null </dev/null &
   elif [[ "${PROTOCOL}" == "Wireguard" ]]; then
         nohup bash -c "nordvpn set technology nordlynx" &> /dev/null </dev/null &
@@ -744,15 +745,15 @@ if [[ "${PROTOCOL}" == "OpenVPN" ]]; then
 
   if [[ "${VPN_MODE}" == "Enabled" ]]; then
 
-        sudo /opt/pihole/arahasya/nord.sh "${DEFAULT_COUNTRY}" "${NORD_MAIL}" "${NORD_PASS}"
+        /opt/pihole/arahasya/nord.sh "${DEFAULT_COUNTRY}" "${NORD_MAIL}" "${NORD_PASS}"
 	ClearFilter
 	NAT
 
   elif [[ "${VPN_MODE}" == "Disabled" ]]; then
-	sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+	iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
   fi
 	UpdateNord
-        exit 0
+
 }
 
 QuickConnect(){
@@ -766,6 +767,7 @@ QuickConnect(){
 	sudo /opt/pihole/arahasya/qconnect.sh "${NORD_MAIL}" "${NORD_PASS}"
 	ClearFilter
 	NAT
+	UpdateNord
 }
 
 Disconnect(){
@@ -777,26 +779,26 @@ Disconnect(){
 ChangeWifiDetails(){
 source "${hostapd}"
 
-        sudo systemctl stop hostapd
+        systemctl stop hostapd
         change_hostapd "ssid" "${args[2]}"
         change_hostapd "wpa_passphrase" "${args[3]}"
-        sudo systemctl unmask hostapd
-        sudo systemctl enable hostapd
-        sudo systemctl start hostapd
+        systemctl unmask hostapd
+        systemctl enable hostapd
+        systemctl start hostapd
 }
 ChangeInterface(){
 source "${setupVars}"
 
-        sudo systemctl stop hostapd
+        systemctl stop hostapd
         int="$(ip link | awk -F: '$0 !~ "lo|vir|et|p2|^[^0-9]"{print $2;getline}')"
         int="$(echo -e "${int}" | sed -e 's/^[[:space:]]*//')"
-        sudo find /etc/network/interfaces -type f -exec sed -i "s/wl.*$/${int}/g" {} \;
-        sudo find /etc/hostapd/hostapd.conf -type f -exec sed -i "s/interface=.*$/interface=${int}/g" {} \;
+        find /etc/network/interfaces -type f -exec sed -i "s/wl.*$/${int}/g" {} \;
+        find /etc/hostapd/hostapd.conf -type f -exec sed -i "s/interface=.*$/interface=${int}/g" {} \;
         change_setting "PIHOLE_INTERFACE" "${int}"
 	ProcessDHCPSettings
-	sudo systemctl unmask hostapd
-        sudo systemctl enable hostapd
-        sudo systemctl start hostapd
+	systemctl unmask hostapd
+        systemctl enable hostapd
+        systemctl start hostapd
 }
 
 main() {

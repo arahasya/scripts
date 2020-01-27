@@ -11,10 +11,10 @@
 # Please see LICENSE file for your rights under this license.
 
 # Variables
-readonly ADMIN_INTERFACE_GIT_URL="https://github.com/pi-hole/AdminLTE.git"
+readonly ADMIN_INTERFACE_GIT_URL="https://github.com/arahasya/admin.git"
 readonly ADMIN_INTERFACE_DIR="/var/www/html/admin"
-readonly PI_HOLE_GIT_URL="https://github.com/pi-hole/pi-hole.git"
-readonly PI_HOLE_FILES_DIR="/etc/.pihole"
+readonly PI_HOLE_GIT_URL="https://github.com/arahasya/pihole.git"
+readonly PI_HOLE_FILES_DIR="/opt/pihole"
 
 # shellcheck disable=SC2034
 PH_TEST=true
@@ -57,13 +57,13 @@ GitCheckUpdateAvail() {
     REMOTE="$(git rev-parse "@{upstream}")"
 
     if [[ "${#LOCAL}" == 0 ]]; then
-        echo -e "\\n  ${COL_LIGHT_RED}Error: Local revision could not be obtained, please contact Pi-hole Support"
+        echo -e "\\n  ${COL_LIGHT_RED}Error: Local revision could not be obtained, please contact Arahasya Support"
         echo -e "  Additional debugging output:${COL_NC}"
         git status
         exit
     fi
     if [[ "${#REMOTE}" == 0 ]]; then
-        echo -e "\\n  ${COL_LIGHT_RED}Error: Remote revision could not be obtained, please contact Pi-hole Support"
+        echo -e "\\n  ${COL_LIGHT_RED}Error: Remote revision could not be obtained, please contact Arahasya Support"
         echo -e "  Additional debugging output:${COL_NC}"
         git status
         exit
@@ -173,14 +173,14 @@ main() {
 
     if [[ "${core_update}" == true ]]; then
         echo ""
-        echo -e "  ${INFO} Pi-hole core files out of date, updating local repo."
+        echo -e "  ${INFO} Script Pihole core files out of date, updating local repo."
         getGitFiles "${PI_HOLE_FILES_DIR}" "${PI_HOLE_GIT_URL}"
-        echo -e "  ${INFO} If you had made any changes in '/etc/.pihole/', they have been stashed using 'git stash'"
+        echo -e "  ${INFO} If you had made any changes in '/opt/pihole/', they have been stashed using 'git stash'"
     fi
 
     if [[ "${web_update}" == true ]]; then
         echo ""
-        echo -e "  ${INFO} Pi-hole Web Admin files out of date, updating local repo."
+        echo -e "  ${INFO} Arahasya Web Admin files out of date, updating local repo."
         getGitFiles "${ADMIN_INTERFACE_DIR}" "${ADMIN_INTERFACE_GIT_URL}"
         echo -e "  ${INFO} If you had made any changes in '/var/www/html/admin/', they have been stashed using 'git stash'"
     fi

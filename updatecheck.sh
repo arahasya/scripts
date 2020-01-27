@@ -49,22 +49,22 @@ if [[ "$2" == "remote" ]]; then
 
     GITHUB_VERSION_FILE="/etc/pihole/GitHubVersions"
 
-    GITHUB_CORE_VERSION="$(json_extract tag_name "$(curl -s 'https://api.github.com/repos/pi-hole/pi-hole/releases/latest' 2> /dev/null)")"
+    GITHUB_CORE_VERSION="$(json_extract tag_name "$(curl -s 'https://api.github.com/repos/arahasya/pihole/releases/latest' 2> /dev/null)")"
     echo -n "${GITHUB_CORE_VERSION}" > "${GITHUB_VERSION_FILE}"
 
     if [[ "${INSTALL_WEB_INTERFACE}" == true ]]; then
-        GITHUB_WEB_VERSION="$(json_extract tag_name "$(curl -s 'https://api.github.com/repos/pi-hole/AdminLTE/releases/latest' 2> /dev/null)")"
+        GITHUB_WEB_VERSION="$(json_extract tag_name "$(curl -s 'https://api.github.com/repos/arahasya/admin/releases/latest' 2> /dev/null)")"
         echo -n " ${GITHUB_WEB_VERSION}" >> "${GITHUB_VERSION_FILE}"
     fi
 
-    GITHUB_FTL_VERSION="$(json_extract tag_name "$(curl -s 'https://api.github.com/repos/pi-hole/FTL/releases/latest' 2> /dev/null)")"
+    GITHUB_FTL_VERSION="$(json_extract tag_name "$(curl -s 'https://api.github.com/repos/arahasya/FTL/releases/latest' 2> /dev/null)")"
     echo -n " ${GITHUB_FTL_VERSION}" >> "${GITHUB_VERSION_FILE}"
 
 else
 
     LOCAL_BRANCH_FILE="/etc/pihole/localbranches"
 
-    CORE_BRANCH="$(get_local_branch /etc/.pihole)"
+    CORE_BRANCH="$(get_local_branch /opt/pihole)"
     echo -n "${CORE_BRANCH}" > "${LOCAL_BRANCH_FILE}"
 
     if [[ "${INSTALL_WEB_INTERFACE}" == true ]]; then
@@ -77,7 +77,7 @@ else
 
     LOCAL_VERSION_FILE="/etc/pihole/localversions"
 
-    CORE_VERSION="$(get_local_version /etc/.pihole)"
+    CORE_VERSION="$(get_local_version /opt/pihole)"
     echo -n "${CORE_VERSION}" > "${LOCAL_VERSION_FILE}"
 
     if [[ "${INSTALL_WEB_INTERFACE}" == true ]]; then
